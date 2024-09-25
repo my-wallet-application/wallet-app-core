@@ -16,6 +16,19 @@ impl DepositMethod {
             _ => None,
         }
     }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            DepositMethod::Native => "Native",
+            DepositMethod::EthErc20 => "EthErc20",
+            DepositMethod::Trc20 => "Trc20",
+            DepositMethod::BinanceBep20 => "BinanceBep20",
+        }
+    }
+
+    pub fn is_native(&self) -> bool {
+        matches!(self, DepositMethod::Native)
+    }
 }
 
 #[derive(Debug, Clone)]
