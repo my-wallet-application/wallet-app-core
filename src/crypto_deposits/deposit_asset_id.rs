@@ -2,7 +2,7 @@
 
 pub const BTC_ID: &str = "BTC";
 pub const ETH_ID: &str = "ETH";
-pub const USDT_ID: &str = "ETH";
+pub const USDT_ID: &str = "USDT";
 pub const SOL_ID: &str = "SOL";
 pub const DOT_ID: &str = "DOT";
 pub const TRX_ID: &str = "TRX";
