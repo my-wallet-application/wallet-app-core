@@ -1,3 +1,8 @@
+pub const NATIVE_DEPOSIT_METHOD_ID: &str = "";
+pub const ETH_ERC20_DEPOSIT_METHOD_ID: &str = "EthErc20";
+pub const TRC20_DEPOSIT_METHOD_ID: &str = "Trc20";
+pub const BINANCE_BEP20_DEPOSIT_METHOD_ID: &str = "BinanceBep20";
+
 #[derive(Debug, Clone, Copy)]
 pub enum CryptoDepositMethod {
     Native,
@@ -9,20 +14,20 @@ pub enum CryptoDepositMethod {
 impl CryptoDepositMethod {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "" => Some(CryptoDepositMethod::Native),
-            "EthErc20" => Some(CryptoDepositMethod::EthErc20),
-            "Trc20" => Some(CryptoDepositMethod::Trc20),
-            "BinanceBep20" => Some(CryptoDepositMethod::BinanceBep20),
+            NATIVE_DEPOSIT_METHOD_ID => Some(CryptoDepositMethod::Native),
+            ETH_ERC20_DEPOSIT_METHOD_ID => Some(CryptoDepositMethod::EthErc20),
+            TRC20_DEPOSIT_METHOD_ID => Some(CryptoDepositMethod::Trc20),
+            BINANCE_BEP20_DEPOSIT_METHOD_ID => Some(CryptoDepositMethod::BinanceBep20),
             _ => None,
         }
     }
 
     pub fn as_str(&self) -> &str {
         match self {
-            CryptoDepositMethod::Native => "",
-            CryptoDepositMethod::EthErc20 => "EthErc20",
-            CryptoDepositMethod::Trc20 => "Trc20",
-            CryptoDepositMethod::BinanceBep20 => "BinanceBep20",
+            CryptoDepositMethod::Native => NATIVE_DEPOSIT_METHOD_ID,
+            CryptoDepositMethod::EthErc20 => ETH_ERC20_DEPOSIT_METHOD_ID,
+            CryptoDepositMethod::Trc20 => TRC20_DEPOSIT_METHOD_ID,
+            CryptoDepositMethod::BinanceBep20 => BINANCE_BEP20_DEPOSIT_METHOD_ID,
         }
     }
 
