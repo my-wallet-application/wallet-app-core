@@ -89,7 +89,7 @@ impl AssetDepositOptions {
         Self { items }
     }
 
-    pub fn find(&self, asset_id: &str) -> Option<&AssetCryptoDepositMethod> {
+    pub fn get(&self, asset_id: &str) -> Option<&AssetCryptoDepositMethod> {
         self.items.get(asset_id)
     }
 
