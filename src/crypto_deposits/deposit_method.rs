@@ -1,6 +1,5 @@
 use rust_extensions::sorted_vec::EntityWithStrKey;
 
-pub const NATIVE_DEPOSIT_METHOD_ID: &str = "";
 pub const ETH_ERC20_DEPOSIT_METHOD_ID: &str = "EthErc20";
 pub const TRC20_DEPOSIT_METHOD_ID: &str = "Trc20";
 pub const BINANCE_BEP20_DEPOSIT_METHOD_ID: &str = "BinanceBep20";
@@ -14,19 +13,18 @@ pub enum CryptoDepositMethod {
 }
 
 impl CryptoDepositMethod {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Self {
         match s {
-            NATIVE_DEPOSIT_METHOD_ID => Some(CryptoDepositMethod::Native),
-            ETH_ERC20_DEPOSIT_METHOD_ID => Some(CryptoDepositMethod::EthErc20),
-            TRC20_DEPOSIT_METHOD_ID => Some(CryptoDepositMethod::Trc20),
-            BINANCE_BEP20_DEPOSIT_METHOD_ID => Some(CryptoDepositMethod::BinanceBep20),
-            _ => None,
+            ETH_ERC20_DEPOSIT_METHOD_ID => CryptoDepositMethod::EthErc20,
+            TRC20_DEPOSIT_METHOD_ID => CryptoDepositMethod::Trc20,
+            BINANCE_BEP20_DEPOSIT_METHOD_ID => CryptoDepositMethod::BinanceBep20,
+            _ => CryptoDepositMethod::Native,
         }
     }
 
-    pub fn as_str(&self) -> &str {
+    pub fn as_str<'s>(&self, asset_id: &'s str) -> &'s str {
         match self {
-            CryptoDepositMethod::Native => NATIVE_DEPOSIT_METHOD_ID,
+            CryptoDepositMethod::Native => asset_id,
             CryptoDepositMethod::EthErc20 => ETH_ERC20_DEPOSIT_METHOD_ID,
             CryptoDepositMethod::Trc20 => TRC20_DEPOSIT_METHOD_ID,
             CryptoDepositMethod::BinanceBep20 => BINANCE_BEP20_DEPOSIT_METHOD_ID,
