@@ -4,11 +4,11 @@ mod deposit_asset_id;
 pub use deposit_asset_id::*;
 use rust_extensions::sorted_vec::SortedVecWithStrKey;
 
-pub struct AssetDepositMethods {
+pub struct AssetDepositOptions {
     items: SortedVecWithStrKey<AssetCryptoDepositMethod>,
 }
 
-impl AssetDepositMethods {
+impl AssetDepositOptions {
     pub fn new() -> Self {
         let mut items = SortedVecWithStrKey::new();
 
