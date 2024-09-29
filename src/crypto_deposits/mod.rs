@@ -92,4 +92,8 @@ impl AssetDepositOptions {
     pub fn find(&self, asset_id: &str) -> Option<&AssetCryptoDepositMethod> {
         self.items.get(asset_id)
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = &AssetCryptoDepositMethod> {
+        self.items.iter()
+    }
 }
