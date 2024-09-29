@@ -1,3 +1,5 @@
+use rust_extensions::sorted_vec::EntityWithStrKey;
+
 pub const NATIVE_DEPOSIT_METHOD_ID: &str = "";
 pub const ETH_ERC20_DEPOSIT_METHOD_ID: &str = "EthErc20";
 pub const TRC20_DEPOSIT_METHOD_ID: &str = "Trc20";
@@ -40,4 +42,10 @@ impl CryptoDepositMethod {
 pub struct AssetCryptoDepositMethod {
     pub asset_id: &'static str,
     pub deposit_methods: Vec<CryptoDepositMethod>,
+}
+
+impl EntityWithStrKey for AssetCryptoDepositMethod {
+    fn get_key(&self) -> &str {
+        self.asset_id
+    }
 }
