@@ -3,6 +3,8 @@ pub use deposit_method::*;
 mod deposit_asset_id;
 pub use deposit_asset_id::*;
 use rust_extensions::sorted_vec::SortedVecWithStrKey;
+mod utils;
+pub use utils::*;
 
 pub struct AssetDepositOptions {
     items: SortedVecWithStrKey<AssetCryptoDepositMethod>,
