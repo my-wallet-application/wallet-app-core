@@ -13,6 +13,22 @@ pub fn calc_buy_amount(
     return sell_amount / rate.get_ask();
 }
 
+pub fn calc_width_commission(
+    sell_asset: &str,
+    buy_asset: &str,
+    sell_amount: f64,
+    commission_amount: f64,
+    rate: &impl BidAsk,
+) -> f64 {
+    let sell_amount = sell_amount - commission_amount;
+
+    if rate.sell_asset() == sell_asset && rate.buy_asset() == buy_asset {
+        return sell_amount * rate.get_bid();
+    }
+
+    return sell_amount / rate.get_ask();
+}
+
 pub fn calc_sell_amount(
     sell_asset: &str,
     buy_asset: &str,
@@ -24,6 +40,20 @@ pub fn calc_sell_amount(
     }
 
     return buy_amount * rate.get_ask();
+}
+
+pub fn calc_sell_amount_with_commission(
+    sell_asset: &str,
+    buy_asset: &str,
+    buy_amount: f64,
+    commission_amount: f64,
+    rate: &impl BidAsk,
+) -> f64 {
+    if rate.sell_asset() == sell_asset && rate.buy_asset() == buy_asset {
+        return buy_amount / rate.get_bid() + commission_amount;
+    }
+
+    return buy_amount * rate.get_ask() + commission_amount;
 }
 
 #[cfg(test)]
