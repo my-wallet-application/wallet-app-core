@@ -1,4 +1,4 @@
-use rust_extensions::sorted_vec::EntityWithStrKey;
+use service_sdk::rust_extensions::sorted_vec::EntityWithStrKey;
 
 pub const ETH_ERC20_DEPOSIT_METHOD_ID: &str = "EthErc20";
 pub const TRC20_DEPOSIT_METHOD_ID: &str = "Trc20";

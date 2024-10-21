@@ -5,4 +5,8 @@ edition = "2021"
 
 [dependencies]
 lazy_static = "*"
-rust-extensions = { tag = "0.1.4", git = "https://github.com/MyJetTools/rust-extensions.git" }
+service-sdk = { tag = "0.3.0", git = "https://github.com/MyJetTools/service-sdk.git", features = [
+    "my-nosql-data-reader-sdk",
+] }
+
+my-nosql-contracts = { tag = "0.1.0", git = "https://github.com/my-wallet-application/my-nosql-contracts.git" }
