@@ -5,6 +5,7 @@ use service_sdk::{
     async_trait::async_trait, my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub enum ExchangeValidationError {
     AssetPairNotFound,
     TradingGroupNotFound,
