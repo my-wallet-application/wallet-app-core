@@ -5,10 +5,11 @@ use service_sdk::{
     async_trait::async_trait, my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ExchangeValidationError {
     AssetPairNotFound,
     TradingGroupNotFound,
+    TradingAssetIsNotConfigured(String),
     TradingConditionNotFound,
     GlobalSettingsNotFound,
 }
@@ -59,6 +60,78 @@ pub trait ExchangeValidatorAndCommissionCalculator {
         }
 
         let asset_pair = asset_pair.unwrap();
+
+        let trading_group =
+            super::get_trading_trading_group(&client_id, self.get_trading_groups_dict()).await;
+
+        if trading_group.is_none() {
+            service_sdk::my_logger::LOGGER.write_error(
+                "get swap commission",
+                "Not trading group found for a client",
+                LogEventCtx::new().add("client_id", client_id),
+            );
+
+            return Err(ExchangeValidationError::TradingGroupNotFound);
+        }
+
+        let trading_group = trading_group.unwrap();
+
+        if trading_group.assets.is_none() {
+            service_sdk::my_logger::LOGGER.write_error(
+                "get swap commission",
+                "Trading group does not have assets configured",
+                LogEventCtx::new()
+                    .add("client_id", client_id)
+                    .add("trading_group_id", trading_group.get_id()),
+            );
+
+            return Err(ExchangeValidationError::TradingGroupNotFound);
+        }
+
+        let mut has_sell_asset = false;
+        let mut has_buy_asset = false;
+        for asset_id in trading_group.assets.as_ref().unwrap() {
+            if asset_id == sell_asset {
+                has_sell_asset = true;
+            }
+
+            if asset_id == buy_asset {
+                has_buy_asset = true;
+            }
+
+            if has_sell_asset && has_buy_asset {
+                break;
+            }
+        }
+
+        if !has_sell_asset {
+            service_sdk::my_logger::LOGGER.write_error(
+                "get swap commission",
+                "Default trading group does not have SELL asset configured",
+                LogEventCtx::new()
+                    .add("client_id", client_id)
+                    .add("sell_asset", sell_asset),
+            );
+            return Err(ExchangeValidationError::TradingAssetIsNotConfigured(
+                sell_asset.to_string(),
+            ));
+        }
+
+        if !has_buy_asset {
+            service_sdk::my_logger::LOGGER.write_error(
+                "get swap commission",
+                "Default trading group does not have BUY asset configured",
+                LogEventCtx::new()
+                    .add("client_id", client_id)
+                    .add("buy_asset", buy_asset),
+            );
+
+            return Err(ExchangeValidationError::TradingAssetIsNotConfigured(
+                buy_asset.to_string(),
+            ));
+        }
+
+        /*
 
         let trading_group = self
             .get_trading_groups_dict()
@@ -113,15 +186,7 @@ pub trait ExchangeValidatorAndCommissionCalculator {
             )
             .await;
 
-        if trading_group.is_none() {
-            service_sdk::my_logger::LOGGER.write_error(
-                "get swap commission",
-                "No default trading group found",
-                LogEventCtx::new().add("client_id", client_id),
-            );
-
-            return Err(ExchangeValidationError::TradingGroupNotFound);
-        }
+        if trading_group.is_none() {}
 
         let trading_group = trading_group.unwrap();
 
@@ -184,5 +249,10 @@ pub trait ExchangeValidatorAndCommissionCalculator {
             trading_condition,
             trading_group,
         });
+
+
+        */
+
+        todo!("Implement the rest of the logic")
     }
 }
