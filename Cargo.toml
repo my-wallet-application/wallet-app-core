@@ -9,7 +9,7 @@ server = ["my-nosql-contracts", "service-sdk"]
 
 [dependencies]
 lazy_static = "*"
-service-sdk = { tag = "0.3.0", git = "https://github.com/MyJetTools/service-sdk.git", features = [
+service-sdk = { tag = "0.4.0", git = "https://github.com/MyJetTools/service-sdk.git", features = [
     "my-nosql-data-reader-sdk",
 ], optional = true }
 
