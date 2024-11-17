@@ -12,6 +12,7 @@ pub enum ExchangeValidationError {
     TradingAssetIsNotConfigured(String),
     TradingConditionNotFound,
     GlobalSettingsNotFound,
+    ExchangeBetweenAssetsIsDisabled,
 }
 
 pub struct ValidationOkResult {
@@ -19,7 +20,7 @@ pub struct ValidationOkResult {
     pub commission_wallet_id: String,
     pub asset_pair: Arc<AssetPairMyNoSqlEntity>,
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
-    pub trading_condition: Arc<TradingConditionsProfile>,
+    pub trading_conditions_profile: Arc<TradingConditionsProfile>,
 }
 
 #[async_trait]
@@ -31,13 +32,14 @@ pub trait ExchangeValidatorAndCommissionCalculator {
 
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
 
-    async fn calc_commission(
+    async fn calc_swap_commission(
         &self,
         client_id: &str,
         sell_asset: &str,
         buy_asset: &str,
         sell_amount: f64,
     ) -> Result<ValidationOkResult, ExchangeValidationError> {
+        const PROCESS_NAME: &str = "calc_swap_commission";
         let asset_pair = self
             .get_asset_pairs_dict()
             .iter_and_find_entity_inside_partition(AssetPairMyNoSqlEntity::PARTITION_KEY, |itm| {
@@ -48,7 +50,7 @@ pub trait ExchangeValidatorAndCommissionCalculator {
 
         if asset_pair.is_none() {
             service_sdk::my_logger::LOGGER.write_error(
-                "get swap commission",
+                PROCESS_NAME,
                 "Invalid assets to execute swap operation",
                 LogEventCtx::new()
                     .add("client_id", client_id)
@@ -66,7 +68,7 @@ pub trait ExchangeValidatorAndCommissionCalculator {
 
         if trading_group.is_none() {
             service_sdk::my_logger::LOGGER.write_error(
-                "get swap commission",
+                PROCESS_NAME,
                 "Not trading group found for a client",
                 LogEventCtx::new().add("client_id", client_id),
             );
@@ -78,7 +80,7 @@ pub trait ExchangeValidatorAndCommissionCalculator {
 
         if trading_group.assets.is_none() {
             service_sdk::my_logger::LOGGER.write_error(
-                "get swap commission",
+                PROCESS_NAME,
                 "Trading group does not have assets configured",
                 LogEventCtx::new()
                     .add("client_id", client_id)
@@ -90,6 +92,7 @@ pub trait ExchangeValidatorAndCommissionCalculator {
 
         let mut has_sell_asset = false;
         let mut has_buy_asset = false;
+
         for asset_id in trading_group.assets.as_ref().unwrap() {
             if asset_id == sell_asset {
                 has_sell_asset = true;
@@ -106,7 +109,7 @@ pub trait ExchangeValidatorAndCommissionCalculator {
 
         if !has_sell_asset {
             service_sdk::my_logger::LOGGER.write_error(
-                "get swap commission",
+                PROCESS_NAME,
                 "Default trading group does not have SELL asset configured",
                 LogEventCtx::new()
                     .add("client_id", client_id)
@@ -119,7 +122,7 @@ pub trait ExchangeValidatorAndCommissionCalculator {
 
         if !has_buy_asset {
             service_sdk::my_logger::LOGGER.write_error(
-                "get swap commission",
+                PROCESS_NAME,
                 "Default trading group does not have BUY asset configured",
                 LogEventCtx::new()
                     .add("client_id", client_id)
@@ -131,90 +134,26 @@ pub trait ExchangeValidatorAndCommissionCalculator {
             ));
         }
 
-        /*
-
-        let trading_group = self
-            .get_trading_groups_dict()
-            .iter_and_find_entity_inside_partition(
-                TradingGroupMyNoSqlEntity::PARTITION_KEY,
-                |itm| {
-                    if !itm.default {
-                        return false;
-                    }
-
-                    let mut has_sell_asset = false;
-                    let mut has_buy_asset = false;
-
-                    if let Some(assets) = itm.assets.as_ref() {
-                        for asset_id in assets {
-                            if asset_id == sell_asset {
-                                has_sell_asset = true;
-                            }
-
-                            if asset_id == buy_asset {
-                                has_buy_asset = true;
-                            }
-
-                            if has_sell_asset && has_buy_asset {
-                                break;
-                            }
-                        }
-                    }
-
-                    if !has_sell_asset {
-                        service_sdk::my_logger::LOGGER.write_error(
-                            "get swap commission",
-                            "Default trading group does not have SELL asset configured",
-                            LogEventCtx::new()
-                                .add("client_id", client_id)
-                                .add("sell_asset", sell_asset),
-                        );
-                    }
-
-                    if !has_buy_asset {
-                        service_sdk::my_logger::LOGGER.write_error(
-                            "get swap commission",
-                            "Default trading group does not have BUY asset configured",
-                            LogEventCtx::new()
-                                .add("client_id", client_id)
-                                .add("buy_asset", buy_asset),
-                        );
-                    }
-
-                    has_buy_asset && has_sell_asset
-                },
-            )
-            .await;
-
-        if trading_group.is_none() {}
-
-        let trading_group = trading_group.unwrap();
-
-        let trading_condition = self
+        let trading_conditions_profile = self
             .get_trading_conditions()
-            .get_entity(
-                &trading_group.trading_conditions_profile_id,
-                asset_pair.get_id(),
-            )
+            .get_entity(trading_group.get_id(), asset_pair.get_id())
             .await;
 
-        if trading_condition.is_none() {
+        if trading_conditions_profile.is_none() {
             service_sdk::my_logger::LOGGER.write_error(
-                "get swap commission",
-                "No trading condition found",
+                PROCESS_NAME,
+                "No asset pair configured for the trading conditions_profile",
                 LogEventCtx::new()
                     .add("client_id", client_id)
+                    .add("buy_asset", buy_asset)
+                    .add("sell_asset", sell_asset)
                     .add("trading_group_id", trading_group.get_id())
-                    .add(
-                        "trading_condition_id",
-                        trading_group.trading_conditions_profile_id.to_string(),
-                    ),
+                    .add("asset_id", asset_pair.get_id()),
             );
-
             return Err(ExchangeValidationError::TradingConditionNotFound);
         }
 
-        let trading_condition = trading_condition.unwrap();
+        let trading_conditions_profile = trading_conditions_profile.unwrap();
 
         let global_settings = self
             .get_global_settings()
@@ -236,23 +175,47 @@ pub trait ExchangeValidatorAndCommissionCalculator {
 
         let global_settings = global_settings.unwrap();
 
-        let commission = if asset_pair.from_asset == sell_asset {
-            sell_amount * trading_condition.direct_exchange_commission
+        let direct = asset_pair.from_asset == sell_asset;
+
+        let commission = if direct {
+            if !trading_conditions_profile.direct_exchange {
+                service_sdk::my_logger::LOGGER.write_error(
+                    PROCESS_NAME,
+                    "Exchange between assets is disabled",
+                    LogEventCtx::new()
+                        .add("client_id", client_id)
+                        .add("buy_asset", buy_asset)
+                        .add("sell_asset", sell_asset)
+                        .add("trading_group_id", trading_group.get_id())
+                        .add("asset_id", asset_pair.get_id()),
+                );
+                return Err(ExchangeValidationError::ExchangeBetweenAssetsIsDisabled);
+            }
+
+            sell_amount * trading_conditions_profile.direct_exchange_commission
         } else {
-            sell_amount * trading_condition.reverse_exchange_commission
+            if !trading_conditions_profile.reverse_exchange {
+                service_sdk::my_logger::LOGGER.write_error(
+                    PROCESS_NAME,
+                    "Exchange between assets is disabled",
+                    LogEventCtx::new()
+                        .add("client_id", client_id)
+                        .add("buy_asset", buy_asset)
+                        .add("sell_asset", sell_asset)
+                        .add("trading_group_id", trading_group.get_id())
+                        .add("asset_id", asset_pair.get_id()),
+                );
+                return Err(ExchangeValidationError::ExchangeBetweenAssetsIsDisabled);
+            }
+            sell_amount * trading_conditions_profile.direct_exchange_commission
         };
 
         return Ok(ValidationOkResult {
             commission,
             commission_wallet_id: global_settings.corporate_account_id.to_string(),
             asset_pair,
-            trading_condition,
+            trading_conditions_profile,
             trading_group,
         });
-
-
-        */
-
-        todo!("Implement the rest of the logic")
     }
 }
