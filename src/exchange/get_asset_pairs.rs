@@ -15,7 +15,7 @@ pub trait GetAssetsPairsDictsResolver {
     fn get_trading_conditions_dict(&self) -> &Arc<MyNoSqlDataReaderTcp<TradingConditionsProfile>>;
 }
 
-pub async fn get_assets_pairs<
+pub async fn get_asset_pairs<
     TDictsResolver: GetAssetsPairsDictsResolver + GetTradingConditionsDictsResolver,
     TResult,
 >(
