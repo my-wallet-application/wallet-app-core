@@ -10,7 +10,7 @@ pub trait GetAssetsPairsDictsResolver {
     fn get_assets_pairs_dict(&self) -> &Arc<MyNoSqlDataReaderTcp<AssetPairMyNoSqlEntity>>;
     fn get_assets_dict(&self) -> &Arc<MyNoSqlDataReaderTcp<AssetMyNoSqlEntity>>;
     fn get_trading_groups_dict(&self) -> &Arc<MyNoSqlDataReaderTcp<TradingGroupMyNoSqlEntity>>;
-    fn get_trading_conditions_dict(&self) -> Arc<MyNoSqlDataReaderTcp<TradingConditionsProfile>>;
+    fn get_trading_conditions_dict(&self) -> &Arc<MyNoSqlDataReaderTcp<TradingConditionsProfile>>;
 }
 
 pub async fn get<TResult>(
