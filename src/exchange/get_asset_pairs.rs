@@ -6,6 +6,8 @@ use my_nosql_contracts::{
 };
 use service_sdk::my_no_sql_sdk::reader::MyNoSqlDataReaderTcp;
 
+use super::GetTradingConditionsDictsResolver;
+
 pub trait GetAssetsPairsDictsResolver {
     fn get_assets_pairs_dict(&self) -> &Arc<MyNoSqlDataReaderTcp<AssetPairMyNoSqlEntity>>;
     fn get_assets_dict(&self) -> &Arc<MyNoSqlDataReaderTcp<AssetMyNoSqlEntity>>;
@@ -13,8 +15,11 @@ pub trait GetAssetsPairsDictsResolver {
     fn get_trading_conditions_dict(&self) -> &Arc<MyNoSqlDataReaderTcp<TradingConditionsProfile>>;
 }
 
-pub async fn get_assets_pairs<TResult>(
-    dicts_resolver: &impl GetAssetsPairsDictsResolver,
+pub async fn get_assets_pairs<
+    TDictsResolver: GetAssetsPairsDictsResolver + GetTradingConditionsDictsResolver,
+    TResult,
+>(
+    dicts_resolver: &TDictsResolver,
     client_id: &str,
     convert: impl Fn(&AssetPairMyNoSqlEntity, &TradingConditionsProfile) -> TResult,
 ) -> Result<Vec<TResult>, String> {
@@ -24,12 +29,7 @@ pub async fn get_assets_pairs<TResult>(
         .await
         .unwrap_or_default();
 
-    let trading_conditions = super::get_trading_conditions(
-        &dicts_resolver.get_trading_groups_dict(),
-        &dicts_resolver.get_trading_conditions_dict(),
-        client_id,
-    )
-    .await?;
+    let trading_conditions = super::get_trading_conditions(dicts_resolver, client_id).await?;
 
     let mut result = Vec::with_capacity(asset_pairs.len());
 

@@ -3,12 +3,19 @@ use std::{collections::BTreeMap, sync::Arc};
 use my_nosql_contracts::trading_groups::{TradingConditionsProfile, TradingGroupMyNoSqlEntity};
 use service_sdk::my_no_sql_sdk::reader::MyNoSqlDataReaderTcp;
 
+pub trait GetTradingConditionsDictsResolver {
+    fn get_trading_groups(&self) -> &Arc<MyNoSqlDataReaderTcp<TradingGroupMyNoSqlEntity>>;
+    fn get_trading_condition_profiles(
+        &self,
+    ) -> &Arc<MyNoSqlDataReaderTcp<TradingConditionsProfile>>;
+}
+
 pub async fn get_trading_conditions(
-    trading_groups: &Arc<MyNoSqlDataReaderTcp<TradingGroupMyNoSqlEntity>>,
-    trading_condition_profiles: &Arc<MyNoSqlDataReaderTcp<TradingConditionsProfile>>,
+    dicts_resolver: &impl GetTradingConditionsDictsResolver,
     client_id: &str,
 ) -> Result<BTreeMap<String, Arc<TradingConditionsProfile>>, String> {
-    let groups = trading_groups
+    let groups = dicts_resolver
+        .get_trading_groups()
         .get_by_partition_key_as_vec(TradingGroupMyNoSqlEntity::PARTITION_KEY)
         .await;
 
@@ -26,7 +33,8 @@ pub async fn get_trading_conditions(
 
     let default_group = default_group.unwrap();
 
-    let groups = trading_condition_profiles
+    let groups = dicts_resolver
+        .get_trading_condition_profiles()
         .get_by_partition_key(default_group.get_id())
         .await;
 
