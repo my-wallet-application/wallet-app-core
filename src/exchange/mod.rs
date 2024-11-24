@@ -14,3 +14,6 @@ pub use get_asset_pairs::*;
 mod get_trading_group;
 #[cfg(feature = "server")]
 pub use get_trading_group::*;
+
+mod get_trading_conditions;
+use get_trading_conditions::*;
