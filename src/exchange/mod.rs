@@ -15,5 +15,7 @@ mod get_trading_group;
 #[cfg(feature = "server")]
 pub use get_trading_group::*;
 
+#[cfg(feature = "server")]
 mod get_trading_conditions;
+#[cfg(feature = "server")]
 use get_trading_conditions::*;
