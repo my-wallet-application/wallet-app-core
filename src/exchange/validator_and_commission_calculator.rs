@@ -26,7 +26,7 @@ pub struct ValidationOkResult {
 }
 
 #[async_trait]
-pub trait ExchangeValidatorAndCommissionDictsResolver {
+pub trait ExchangeValidatorAndCommissionDictsResolver<TBidAsk: BidAsk + Send + Sync + 'static> {
     fn get_trading_groups_dict(&self) -> &MyNoSqlDataReaderTcp<TradingGroupMyNoSqlEntity>;
     fn get_asset_pairs_dict(&self) -> &MyNoSqlDataReaderTcp<AssetPairMyNoSqlEntity>;
 
@@ -34,13 +34,13 @@ pub trait ExchangeValidatorAndCommissionDictsResolver {
 
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
 
-    async fn get_bid_ask(&self, id: &str) -> Option<Arc<impl BidAsk + Send + Sync + 'static>>;
+    async fn get_bid_ask(&self, id: &str) -> Option<Arc<TBidAsk>>;
 }
 
 const PROCESS_NAME: &str = "calc_exchange_commission";
 
-pub async fn calc_exchange_commission(
-    dicts_resolver: &impl ExchangeValidatorAndCommissionDictsResolver,
+pub async fn calc_exchange_commission<TBidAsk: BidAsk + Send + Sync + 'static>(
+    dicts_resolver: &impl ExchangeValidatorAndCommissionDictsResolver<TBidAsk>,
     client_id: &str,
     sell_asset: &str,
     buy_asset: &str,
