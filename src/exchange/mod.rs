@@ -1,9 +1,9 @@
 mod utils;
 pub use utils::*;
 #[cfg(feature = "server")]
-mod validator_and_commission_calculator;
+mod commission_calculator;
 #[cfg(feature = "server")]
-pub use validator_and_commission_calculator::*;
+pub use commission_calculator::*;
 #[cfg(feature = "server")]
 mod get_asset_pairs;
 #[cfg(feature = "server")]

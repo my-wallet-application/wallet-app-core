@@ -29,7 +29,10 @@ pub struct ValidationOkResult<TBidAsk> {
 }
 
 #[async_trait]
-pub trait ExchangeValidatorAndCommissionDictsResolver<TBidAsk: BidAsk + Send + Sync + 'static> {
+pub trait ExchangeValidatorAndCommissionDictsResolver<
+    TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static,
+>
+{
     fn get_trading_groups_dict(&self) -> &MyNoSqlDataReaderTcp<TradingGroupMyNoSqlEntity>;
     fn get_asset_pairs_dict(&self) -> &MyNoSqlDataReaderTcp<AssetPairMyNoSqlEntity>;
 
@@ -37,20 +40,27 @@ pub trait ExchangeValidatorAndCommissionDictsResolver<TBidAsk: BidAsk + Send + S
 
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
 
-    async fn get_bid_ask(&self, id: &str) -> Option<TBidAsk>;
+    fn get_sell_wallet_amount(&self) -> f64;
+    async fn get_bid_ask_by_id(&self, id: &str) -> Option<TBidAsk>;
 }
 
 const PROCESS_NAME: &str = "calc_exchange_commission";
 
+#[derive(Debug)]
+pub enum ConvertAmount {
+    SellAmount(f64),
+    BuyAmount(f64),
+    SellMax,
+}
+
 pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static>(
-    dicts_resolver: &impl ExchangeValidatorAndCommissionDictsResolver<TBidAsk>,
+    dependency_resolver: &impl ExchangeValidatorAndCommissionDictsResolver<TBidAsk>,
     client_id: &str,
     sell_asset: &str,
     buy_asset: &str,
-    sell_amount: Option<f64>,
-    buy_amount: Option<f64>,
+    amount: ConvertAmount,
 ) -> Result<ValidationOkResult<TBidAsk>, ExchangeValidationError> {
-    let asset_pair = dicts_resolver
+    let asset_pair = dependency_resolver
         .get_asset_pairs_dict()
         .iter_and_find_entity_inside_partition(AssetPairMyNoSqlEntity::PARTITION_KEY, |itm| {
             itm.from_asset == sell_asset && itm.to_asset == buy_asset
@@ -74,7 +84,7 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
     let asset_pair = asset_pair.unwrap();
 
     let trading_group =
-        super::get_trading_trading_group(&client_id, dicts_resolver.get_trading_groups_dict())
+        super::get_trading_trading_group(&client_id, dependency_resolver.get_trading_groups_dict())
             .await;
 
     if trading_group.is_none() {
@@ -145,7 +155,7 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
         ));
     }
 
-    let trading_conditions_profile = dicts_resolver
+    let trading_conditions_profile = dependency_resolver
         .get_trading_conditions()
         .get_entity(trading_group.get_id(), asset_pair.get_id())
         .await;
@@ -166,7 +176,7 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
     let trading_conditions_profile = trading_conditions_profile.unwrap();
 
-    let global_settings = dicts_resolver
+    let global_settings = dependency_resolver
         .get_global_settings()
         .get_entity(
             GlobalSettingsMyNoSqlEntity::PARTITION_KEY,
@@ -188,7 +198,9 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
     let direct = asset_pair.from_asset == sell_asset;
 
-    let bid_ask = dicts_resolver.get_bid_ask(asset_pair.get_id()).await;
+    let bid_ask = dependency_resolver
+        .get_bid_ask_by_id(asset_pair.get_id())
+        .await;
 
     if bid_ask.is_none() {
         service_sdk::my_logger::LOGGER.write_error(
@@ -197,8 +209,7 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
             LogEventCtx::new()
                 .add("client_id", client_id)
                 .add("buy_asset", buy_asset)
-                .add("buy_amount", format!("{:?}", buy_amount))
-                .add("sell_amount", format!("{:?}", sell_amount))
+                .add("amount", format!("{:?}", amount))
                 .add("sell_asset", sell_asset)
                 .add("trading_group_id", trading_group.get_id())
                 .add("asset_id", asset_pair.get_id()),
@@ -209,11 +220,12 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
     let bid_ask = bid_ask.unwrap();
 
-    let sell_amount = if let Some(sell_amount) = sell_amount {
-        sell_amount
-    } else {
-        let buy_amount = buy_amount.unwrap();
-        super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask)
+    let sell_amount = match amount {
+        ConvertAmount::SellAmount(sell_amount) => sell_amount,
+        ConvertAmount::BuyAmount(buy_amount) => {
+            super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask)
+        }
+        ConvertAmount::SellMax => dependency_resolver.get_sell_wallet_amount(),
     };
 
     let commission = if direct {
