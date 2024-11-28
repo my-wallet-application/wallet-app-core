@@ -34,7 +34,7 @@ pub trait ExchangeValidatorAndCommissionDictsResolver {
 
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
 
-    async fn get_bid_ask(&self) -> Option<Arc<impl BidAsk + Send + Sync + 'static>>;
+    async fn get_bid_ask(&self, id: &str) -> Option<Arc<impl BidAsk + Send + Sync + 'static>>;
 }
 
 const PROCESS_NAME: &str = "calc_exchange_commission";
@@ -188,7 +188,7 @@ pub async fn calc_exchange_commission(
     let sell_amount = if let Some(sell_amount) = sell_amount {
         sell_amount
     } else {
-        let bid_ask = dicts_resolver.get_bid_ask().await;
+        let bid_ask = dicts_resolver.get_bid_ask(asset_pair.get_id()).await;
 
         if bid_ask.is_none() {
             service_sdk::my_logger::LOGGER.write_error(
@@ -197,6 +197,8 @@ pub async fn calc_exchange_commission(
                 LogEventCtx::new()
                     .add("client_id", client_id)
                     .add("buy_asset", buy_asset)
+                    .add("buy_amount", format!("{:?}", buy_amount))
+                    .add("sell_amount", format!("{:?}", sell_amount))
                     .add("sell_asset", sell_asset)
                     .add("trading_group_id", trading_group.get_id())
                     .add("asset_id", asset_pair.get_id()),
