@@ -3,6 +3,8 @@ use std::sync::Arc;
 use my_nosql_contracts::{trading_groups::*, *};
 use service_sdk::{my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp};
 
+use crate::bid_ask::*;
+
 #[derive(Debug, Clone)]
 pub enum ExchangeValidationError {
     AssetPairNotFound,
@@ -18,18 +20,27 @@ pub struct ExchangeQuoteValidationResult {
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
     pub trading_conditions_profile: Arc<TradingConditionsProfile>,
     pub commission_wallet_id: String,
+    commission: f64,
+}
+
+impl ExchangeQuoteValidationResult {
+    pub fn calc_commission(&self, sell_amount: f64) -> f64 {
+        sell_amount * self.commission * 0.01
+    }
 }
 
 pub trait ExchangeValidationDependenciesResolver {
     fn get_trading_groups_dict(&self) -> &MyNoSqlDataReaderTcp<TradingGroupMyNoSqlEntity>;
     fn get_asset_pairs_dict(&self) -> &MyNoSqlDataReaderTcp<AssetPairMyNoSqlEntity>;
+
     fn get_trading_conditions(&self) -> &MyNoSqlDataReaderTcp<TradingConditionsProfile>;
+
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
 }
 
 const PROCESS_NAME: &str = "validate_before_exchange";
 
-pub async fn validate_before_exchange(
+pub async fn validate_before_exchange<TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static>(
     dependency_resolver: &impl ExchangeValidationDependenciesResolver,
     client_id: &str,
     sell_asset: &str,
@@ -127,11 +138,46 @@ pub async fn validate_before_exchange(
 
     let global_settings = global_settings.unwrap();
 
+    let direct = asset_pair.from_asset == sell_asset;
+
+    let commission = if direct {
+        if !trading_conditions_profile.direct_exchange {
+            service_sdk::my_logger::LOGGER.write_error(
+                PROCESS_NAME,
+                "Exchange between assets is disabled",
+                LogEventCtx::new()
+                    .add("client_id", client_id)
+                    .add("buy_asset", buy_asset)
+                    .add("sell_asset", sell_asset)
+                    .add("trading_group_id", trading_group.get_id())
+                    .add("asset_id", asset_pair.get_id()),
+            );
+            return Err(ExchangeValidationError::ExchangeBetweenAssetsIsDisabled);
+        }
+        trading_conditions_profile.direct_exchange_commission
+    } else {
+        if !trading_conditions_profile.reverse_exchange {
+            service_sdk::my_logger::LOGGER.write_error(
+                PROCESS_NAME,
+                "Exchange between assets is disabled",
+                LogEventCtx::new()
+                    .add("client_id", client_id)
+                    .add("buy_asset", buy_asset)
+                    .add("sell_asset", sell_asset)
+                    .add("trading_group_id", trading_group.get_id())
+                    .add("asset_id", asset_pair.get_id()),
+            );
+            return Err(ExchangeValidationError::ExchangeBetweenAssetsIsDisabled);
+        }
+        trading_conditions_profile.reverse_exchange_commission
+    };
+
     return Ok(ExchangeQuoteValidationResult {
         commission_wallet_id: global_settings.corporate_account_id.to_string(),
         asset_pair,
         trading_conditions_profile,
         trading_group,
+        commission,
     });
 }
 
