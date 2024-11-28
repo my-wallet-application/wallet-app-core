@@ -20,6 +20,13 @@ pub struct ExchangeQuoteValidationResult {
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
     pub trading_conditions_profile: Arc<TradingConditionsProfile>,
     pub commission_wallet_id: String,
+    commission: f64,
+}
+
+impl ExchangeQuoteValidationResult {
+    pub fn calc_commission(&self, sell_amount: f64) -> f64 {
+        sell_amount * self.commission * 0.01
+    }
 }
 
 pub trait ExchangeValidationDependenciesResolver {
@@ -131,11 +138,46 @@ pub async fn validate_before_exchange<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
     let global_settings = global_settings.unwrap();
 
+    let direct = asset_pair.from_asset == sell_asset;
+
+    let commission = if direct {
+        if !trading_conditions_profile.direct_exchange {
+            service_sdk::my_logger::LOGGER.write_error(
+                PROCESS_NAME,
+                "Exchange between assets is disabled",
+                LogEventCtx::new()
+                    .add("client_id", client_id)
+                    .add("buy_asset", buy_asset)
+                    .add("sell_asset", sell_asset)
+                    .add("trading_group_id", trading_group.get_id())
+                    .add("asset_id", asset_pair.get_id()),
+            );
+            return Err(ExchangeValidationError::ExchangeBetweenAssetsIsDisabled);
+        }
+        trading_conditions_profile.direct_exchange_commission
+    } else {
+        if !trading_conditions_profile.reverse_exchange {
+            service_sdk::my_logger::LOGGER.write_error(
+                PROCESS_NAME,
+                "Exchange between assets is disabled",
+                LogEventCtx::new()
+                    .add("client_id", client_id)
+                    .add("buy_asset", buy_asset)
+                    .add("sell_asset", sell_asset)
+                    .add("trading_group_id", trading_group.get_id())
+                    .add("asset_id", asset_pair.get_id()),
+            );
+            return Err(ExchangeValidationError::ExchangeBetweenAssetsIsDisabled);
+        }
+        trading_conditions_profile.reverse_exchange_commission
+    };
+
     return Ok(ExchangeQuoteValidationResult {
         commission_wallet_id: global_settings.corporate_account_id.to_string(),
         asset_pair,
         trading_conditions_profile,
         trading_group,
+        commission,
     });
 }
 
