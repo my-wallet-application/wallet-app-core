@@ -46,7 +46,7 @@ pub trait ExchangeValidatorAndCommissionDictsResolver<
 
 const PROCESS_NAME: &str = "calc_exchange_commission";
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ConvertAmount {
     SellAmount(f64),
     BuyAmount(f64),
