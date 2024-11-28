@@ -209,7 +209,7 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
         let bid_ask = bid_ask.unwrap();
         let buy_amount = buy_amount.unwrap();
-        super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, bid_ask.as_ref())
+        super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask)
     };
 
     let commission = if direct {
