@@ -40,7 +40,7 @@ pub trait ExchangeValidatorAndCommissionDictsResolver<
 
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
 
-    async fn get_wallet_amount(&self, client_id: &str, asset_id: &str) -> f64;
+    async fn get_wallet_balance(&self, client_id: &str, asset_id: &str) -> f64;
     async fn get_bid_ask_by_id(&self, id: &str) -> Option<TBidAsk>;
 }
 
@@ -227,7 +227,7 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
         }
         ConvertAmount::SellMax => {
             dependency_resolver
-                .get_wallet_amount(client_id, sell_asset)
+                .get_wallet_balance(client_id, sell_asset)
                 .await
         }
     };
