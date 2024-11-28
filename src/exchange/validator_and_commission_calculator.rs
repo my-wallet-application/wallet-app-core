@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use my_nosql_contracts::{trading_groups::*, *};
-use service_sdk::{my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp};
+use service_sdk::{
+    async_trait::async_trait, my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp,
+};
+
+use super::BidAsk;
 
 #[derive(Debug, Clone)]
 pub enum ExchangeValidationError {
@@ -21,6 +25,7 @@ pub struct ValidationOkResult {
     pub trading_conditions_profile: Arc<TradingConditionsProfile>,
 }
 
+#[async_trait]
 pub trait ExchangeValidatorAndCommissionDictsResolver {
     fn get_trading_groups_dict(&self) -> &MyNoSqlDataReaderTcp<TradingGroupMyNoSqlEntity>;
     fn get_asset_pairs_dict(&self) -> &MyNoSqlDataReaderTcp<AssetPairMyNoSqlEntity>;
@@ -28,6 +33,8 @@ pub trait ExchangeValidatorAndCommissionDictsResolver {
     fn get_trading_conditions(&self) -> &MyNoSqlDataReaderTcp<TradingConditionsProfile>;
 
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
+
+    async fn get_bid_ask(&self) -> Option<Arc<impl BidAsk + Send + Sync + 'static>>;
 }
 
 const PROCESS_NAME: &str = "calc_exchange_commission";
@@ -37,7 +44,8 @@ pub async fn calc_exchange_commission(
     client_id: &str,
     sell_asset: &str,
     buy_asset: &str,
-    sell_amount: f64,
+    sell_amount: Option<f64>,
+    buy_amount: Option<f64>,
 ) -> Result<ValidationOkResult, ExchangeValidationError> {
     let asset_pair = dicts_resolver
         .get_asset_pairs_dict()
@@ -177,6 +185,31 @@ pub async fn calc_exchange_commission(
 
     let direct = asset_pair.from_asset == sell_asset;
 
+    let sell_amount = if let Some(sell_amount) = sell_amount {
+        sell_amount
+    } else {
+        let bid_ask = dicts_resolver.get_bid_ask().await;
+
+        if bid_ask.is_none() {
+            service_sdk::my_logger::LOGGER.write_error(
+                PROCESS_NAME,
+                "No bid ask found",
+                LogEventCtx::new()
+                    .add("client_id", client_id)
+                    .add("buy_asset", buy_asset)
+                    .add("sell_asset", sell_asset)
+                    .add("trading_group_id", trading_group.get_id())
+                    .add("asset_id", asset_pair.get_id()),
+            );
+
+            return Err(ExchangeValidationError::GlobalSettingsNotFound);
+        }
+
+        let bid_ask = bid_ask.unwrap();
+        let buy_amount = buy_amount.unwrap();
+        super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, bid_ask.as_ref())
+    };
+
     let commission = if direct {
         if !trading_conditions_profile.direct_exchange {
             service_sdk::my_logger::LOGGER.write_error(
@@ -217,11 +250,4 @@ pub async fn calc_exchange_commission(
         trading_conditions_profile,
         trading_group,
     });
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn test_swap_quote_calculation() {}
 }
