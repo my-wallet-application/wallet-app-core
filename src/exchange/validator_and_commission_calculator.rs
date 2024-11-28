@@ -23,6 +23,8 @@ pub struct ValidationOkResult<TBidAsk> {
     pub asset_pair: Arc<AssetPairMyNoSqlEntity>,
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
     pub trading_conditions_profile: Arc<TradingConditionsProfile>,
+    pub sell_amount: f64,
+    pub buy_amount: f64,
     pub bid_ask: TBidAsk,
 }
 
@@ -207,11 +209,16 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
     let bid_ask = bid_ask.unwrap();
 
-    let sell_amount = if let Some(sell_amount) = sell_amount {
-        sell_amount
+    let (sell_amount, buy_amount) = if let Some(sell_amount) = sell_amount {
+        let buy_amount =
+            super::utils::calc_buy_amount(sell_asset, buy_asset, sell_amount, &bid_ask);
+        (sell_amount, buy_amount)
     } else {
         let buy_amount = buy_amount.unwrap();
-        super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask)
+        let sell_amount =
+            super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask);
+
+        (sell_amount, buy_amount)
     };
 
     let commission = if direct {
@@ -253,6 +260,8 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
         asset_pair,
         trading_conditions_profile,
         trading_group,
+        sell_amount,
+        buy_amount,
         bid_ask,
     });
 }
