@@ -3,8 +3,6 @@ use std::sync::Arc;
 use my_nosql_contracts::{trading_groups::*, *};
 use service_sdk::{my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp};
 
-use crate::bid_ask::*;
-
 #[derive(Debug, Clone)]
 pub enum ExchangeValidationError {
     AssetPairNotFound,
@@ -25,15 +23,13 @@ pub struct ExchangeQuoteValidationResult {
 pub trait ExchangeValidationDependenciesResolver {
     fn get_trading_groups_dict(&self) -> &MyNoSqlDataReaderTcp<TradingGroupMyNoSqlEntity>;
     fn get_asset_pairs_dict(&self) -> &MyNoSqlDataReaderTcp<AssetPairMyNoSqlEntity>;
-
     fn get_trading_conditions(&self) -> &MyNoSqlDataReaderTcp<TradingConditionsProfile>;
-
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
 }
 
 const PROCESS_NAME: &str = "validate_before_exchange";
 
-pub async fn validate_before_exchange<TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static>(
+pub async fn validate_before_exchange(
     dependency_resolver: &impl ExchangeValidationDependenciesResolver,
     client_id: &str,
     sell_asset: &str,
