@@ -17,12 +17,13 @@ pub enum ExchangeValidationError {
     ExchangeBetweenAssetsIsDisabled,
 }
 
-pub struct ValidationOkResult {
+pub struct ValidationOkResult<TBidAsk> {
     pub commission: f64,
     pub commission_wallet_id: String,
     pub asset_pair: Arc<AssetPairMyNoSqlEntity>,
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
     pub trading_conditions_profile: Arc<TradingConditionsProfile>,
+    pub bid_ask: TBidAsk,
 }
 
 #[async_trait]
@@ -46,7 +47,7 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
     buy_asset: &str,
     sell_amount: Option<f64>,
     buy_amount: Option<f64>,
-) -> Result<ValidationOkResult, ExchangeValidationError> {
+) -> Result<ValidationOkResult<TBidAsk>, ExchangeValidationError> {
     let asset_pair = dicts_resolver
         .get_asset_pairs_dict()
         .iter_and_find_entity_inside_partition(AssetPairMyNoSqlEntity::PARTITION_KEY, |itm| {
@@ -185,29 +186,30 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
     let direct = asset_pair.from_asset == sell_asset;
 
+    let bid_ask = dicts_resolver.get_bid_ask(asset_pair.get_id()).await;
+
+    if bid_ask.is_none() {
+        service_sdk::my_logger::LOGGER.write_error(
+            PROCESS_NAME,
+            "No bid ask found",
+            LogEventCtx::new()
+                .add("client_id", client_id)
+                .add("buy_asset", buy_asset)
+                .add("buy_amount", format!("{:?}", buy_amount))
+                .add("sell_amount", format!("{:?}", sell_amount))
+                .add("sell_asset", sell_asset)
+                .add("trading_group_id", trading_group.get_id())
+                .add("asset_id", asset_pair.get_id()),
+        );
+
+        return Err(ExchangeValidationError::GlobalSettingsNotFound);
+    }
+
+    let bid_ask = bid_ask.unwrap();
+
     let sell_amount = if let Some(sell_amount) = sell_amount {
         sell_amount
     } else {
-        let bid_ask = dicts_resolver.get_bid_ask(asset_pair.get_id()).await;
-
-        if bid_ask.is_none() {
-            service_sdk::my_logger::LOGGER.write_error(
-                PROCESS_NAME,
-                "No bid ask found",
-                LogEventCtx::new()
-                    .add("client_id", client_id)
-                    .add("buy_asset", buy_asset)
-                    .add("buy_amount", format!("{:?}", buy_amount))
-                    .add("sell_amount", format!("{:?}", sell_amount))
-                    .add("sell_asset", sell_asset)
-                    .add("trading_group_id", trading_group.get_id())
-                    .add("asset_id", asset_pair.get_id()),
-            );
-
-            return Err(ExchangeValidationError::GlobalSettingsNotFound);
-        }
-
-        let bid_ask = bid_ask.unwrap();
         let buy_amount = buy_amount.unwrap();
         super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask)
     };
@@ -251,5 +253,6 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
         asset_pair,
         trading_conditions_profile,
         trading_group,
+        bid_ask,
     });
 }
