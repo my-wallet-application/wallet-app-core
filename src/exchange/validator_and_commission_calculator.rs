@@ -34,7 +34,7 @@ pub trait ExchangeValidatorAndCommissionDictsResolver<TBidAsk: BidAsk + Send + S
 
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
 
-    async fn get_bid_ask(&self, id: &str) -> Option<Arc<TBidAsk>>;
+    async fn get_bid_ask(&self, id: &str) -> Option<TBidAsk>;
 }
 
 const PROCESS_NAME: &str = "calc_exchange_commission";
