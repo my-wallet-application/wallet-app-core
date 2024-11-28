@@ -15,12 +15,6 @@ pub enum ExchangeValidationError {
     ExchangeBetweenAssetsIsDisabled,
 }
 
-pub struct ExchangeCalculatorResult {
-    pub commission: f64,
-    pub sell_amount: f64,
-    pub buy_amount: f64,
-}
-
 pub struct ExchangeQuoteValidationResult {
     pub asset_pair: Arc<AssetPairMyNoSqlEntity>,
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
