@@ -13,7 +13,7 @@ pub fn calc_buy_amount<TBidAsk: BidAsk + BidAskSearch>(
     return sell_amount / bid_ask.get_ask();
 }
 
-pub fn calc_width_commission<TBidAsk: BidAsk + BidAskSearch>(
+pub fn calc_buy_amount_with_commission<TBidAsk: BidAsk + BidAskSearch>(
     sell_asset: &str,
     buy_asset: &str,
     sell_amount: f64,
