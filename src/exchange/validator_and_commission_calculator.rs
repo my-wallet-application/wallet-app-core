@@ -210,10 +210,17 @@ pub async fn calc_swap_commission(
     };
 
     return Ok(ValidationOkResult {
-        commission,
+        commission: commission * 0.01,
         commission_wallet_id: global_settings.corporate_account_id.to_string(),
         asset_pair,
         trading_conditions_profile,
         trading_group,
     });
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test_swap_quote_calculation() {}
 }
