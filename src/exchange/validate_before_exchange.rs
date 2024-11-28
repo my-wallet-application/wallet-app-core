@@ -15,6 +15,7 @@ pub enum ExchangeValidationError {
     ExchangeBetweenAssetsIsDisabled,
 }
 
+#[derive(Debug, Clone)]
 pub struct ExchangeQuoteValidationResult {
     pub asset_pair: Arc<AssetPairMyNoSqlEntity>,
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
