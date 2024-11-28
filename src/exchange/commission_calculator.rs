@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use my_nosql_contracts::{trading_groups::*, *};
-use service_sdk::{
-    async_trait::async_trait, my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp,
-};
+use service_sdk::{my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp};
 
 use crate::bid_ask::*;
 
@@ -17,49 +15,36 @@ pub enum ExchangeValidationError {
     ExchangeBetweenAssetsIsDisabled,
 }
 
-pub struct ValidationOkResult<TBidAsk> {
+pub struct ExchangeCalculatorResult {
     pub commission: f64,
-    pub commission_wallet_id: String,
+    pub sell_amount: f64,
+    pub buy_amount: f64,
+}
+
+pub struct ExchangeQuoteValidationResult {
     pub asset_pair: Arc<AssetPairMyNoSqlEntity>,
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
     pub trading_conditions_profile: Arc<TradingConditionsProfile>,
-    pub sell_amount: f64,
-    pub buy_amount: f64,
-    pub bid_ask: TBidAsk,
+    pub commission_wallet_id: String,
 }
 
-#[async_trait]
-pub trait ExchangeValidatorAndCommissionDictsResolver<
-    TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static,
->
-{
+pub trait ExchangeValidationDependenciesResolver {
     fn get_trading_groups_dict(&self) -> &MyNoSqlDataReaderTcp<TradingGroupMyNoSqlEntity>;
     fn get_asset_pairs_dict(&self) -> &MyNoSqlDataReaderTcp<AssetPairMyNoSqlEntity>;
 
     fn get_trading_conditions(&self) -> &MyNoSqlDataReaderTcp<TradingConditionsProfile>;
 
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
-
-    async fn get_wallet_balance(&self, client_id: &str, asset_id: &str) -> f64;
-    async fn get_bid_ask_by_id(&self, id: &str) -> Option<TBidAsk>;
 }
 
-const PROCESS_NAME: &str = "calc_exchange_commission";
+const PROCESS_NAME: &str = "validate_before_exchange";
 
-#[derive(Debug, Clone, Copy)]
-pub enum ConvertAmount {
-    SellAmount(f64),
-    BuyAmount(f64),
-    SellMax,
-}
-
-pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static>(
-    dependency_resolver: &impl ExchangeValidatorAndCommissionDictsResolver<TBidAsk>,
+pub async fn validate_before_exchange<TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static>(
+    dependency_resolver: &impl ExchangeValidationDependenciesResolver,
     client_id: &str,
     sell_asset: &str,
     buy_asset: &str,
-    amount: ConvertAmount,
-) -> Result<ValidationOkResult<TBidAsk>, ExchangeValidationError> {
+) -> Result<ExchangeQuoteValidationResult, ExchangeValidationError> {
     let asset_pair = dependency_resolver
         .get_asset_pairs_dict()
         .iter_and_find_entity_inside_partition(AssetPairMyNoSqlEntity::PARTITION_KEY, |itm| {
@@ -111,6 +96,63 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
         return Err(ExchangeValidationError::TradingGroupNotFound);
     }
 
+    let trading_conditions_profile = dependency_resolver
+        .get_trading_conditions()
+        .get_entity(trading_group.get_id(), asset_pair.get_id())
+        .await;
+
+    if trading_conditions_profile.is_none() {
+        service_sdk::my_logger::LOGGER.write_error(
+            PROCESS_NAME,
+            "No asset pair configured for the trading conditions_profile",
+            LogEventCtx::new()
+                .add("client_id", client_id)
+                .add("buy_asset", buy_asset)
+                .add("sell_asset", sell_asset)
+                .add("trading_group_id", trading_group.get_id())
+                .add("asset_id", asset_pair.get_id()),
+        );
+        return Err(ExchangeValidationError::TradingConditionNotFound);
+    }
+
+    let trading_conditions_profile = trading_conditions_profile.unwrap();
+
+    let global_settings = dependency_resolver
+        .get_global_settings()
+        .get_entity(
+            GlobalSettingsMyNoSqlEntity::PARTITION_KEY,
+            GlobalSettingsMyNoSqlEntity::ROW_KEY,
+        )
+        .await;
+
+    if global_settings.is_none() {
+        service_sdk::my_logger::LOGGER.write_error(
+            PROCESS_NAME,
+            "No global settings found",
+            LogEventCtx::new().add("client_id", client_id),
+        );
+
+        return Err(ExchangeValidationError::GlobalSettingsNotFound);
+    }
+
+    let global_settings = global_settings.unwrap();
+
+    return Ok(ExchangeQuoteValidationResult {
+        commission_wallet_id: global_settings.corporate_account_id.to_string(),
+        asset_pair,
+        trading_conditions_profile,
+        trading_group,
+    });
+}
+
+/*
+pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static>(
+    dependency_resolver: &impl ExchangeCommissionCalculatorDependenciesResolver<TBidAsk>,
+    client_id: &str,
+    sell_asset: &str,
+    buy_asset: &str,
+    amount: ConvertAmount,
+) -> Result<ExchangeCalculatorResult<TBidAsk>, ExchangeValidationError> {
     let mut has_sell_asset = false;
     let mut has_buy_asset = false;
 
@@ -220,16 +262,28 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
     let bid_ask = bid_ask.unwrap();
 
+    let sell_wallet_balance = dependency_resolver
+        .get_wallet_balance(client_id, sell_asset)
+        .await;
+
     let sell_amount = match amount {
-        ConvertAmount::SellAmount(sell_amount) => sell_amount,
+        ConvertAmount::SellAmount(sell_amount) => {
+            if sell_amount > sell_wallet_balance {
+                return Err(ExchangeValidationError::NotEnoughFunds);
+            }
+            sell_amount
+        }
         ConvertAmount::BuyAmount(buy_amount) => {
-            super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask)
+            let sell_amount =
+                super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask);
+
+            if sell_amount > sell_wallet_balance {
+                return Err(ExchangeValidationError::NotEnoughFunds);
+            }
+
+            sell_amount
         }
-        ConvertAmount::SellMax => {
-            dependency_resolver
-                .get_wallet_balance(client_id, sell_asset)
-                .await
-        }
+        ConvertAmount::SellMax => sell_wallet_balance,
     };
 
     let commission = if direct {
@@ -271,7 +325,7 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
     let buy_amount = super::utils::calc_buy_amount(sell_asset, buy_asset, sell_amount, &bid_ask);
 
-    return Ok(ValidationOkResult {
+    return Ok(ExchangeCalculatorResult {
         commission,
         commission_wallet_id: global_settings.corporate_account_id.to_string(),
         asset_pair,
@@ -282,3 +336,4 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
         bid_ask,
     });
 }
+ */
