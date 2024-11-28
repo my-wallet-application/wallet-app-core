@@ -209,16 +209,11 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
 
     let bid_ask = bid_ask.unwrap();
 
-    let (sell_amount, buy_amount) = if let Some(sell_amount) = sell_amount {
-        let buy_amount =
-            super::utils::calc_buy_amount(sell_asset, buy_asset, sell_amount, &bid_ask);
-        (sell_amount, buy_amount)
+    let sell_amount = if let Some(sell_amount) = sell_amount {
+        sell_amount
     } else {
         let buy_amount = buy_amount.unwrap();
-        let sell_amount =
-            super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask);
-
-        (sell_amount, buy_amount)
+        super::utils::calc_sell_amount(sell_asset, buy_asset, buy_amount, &bid_ask)
     };
 
     let commission = if direct {
@@ -254,8 +249,14 @@ pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sy
         sell_amount * trading_conditions_profile.direct_exchange_commission
     };
 
+    let commission = commission * 0.01;
+
+    let sell_amount = sell_amount - commission;
+
+    let buy_amount = super::utils::calc_buy_amount(sell_asset, buy_asset, sell_amount, &bid_ask);
+
     return Ok(ValidationOkResult {
-        commission: commission * 0.01,
+        commission,
         commission_wallet_id: global_settings.corporate_account_id.to_string(),
         asset_pair,
         trading_conditions_profile,
