@@ -40,7 +40,7 @@ pub trait ExchangeValidationDependenciesResolver {
 
 const PROCESS_NAME: &str = "validate_before_exchange";
 
-pub async fn validate_before_exchange<TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static>(
+pub async fn validate_before_exchange(
     dependency_resolver: &impl ExchangeValidationDependenciesResolver,
     client_id: &str,
     sell_asset: &str,
