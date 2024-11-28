@@ -30,14 +30,15 @@ pub trait ExchangeValidatorAndCommissionDictsResolver {
     fn get_global_settings(&self) -> &MyNoSqlDataReaderTcp<GlobalSettingsMyNoSqlEntity>;
 }
 
-pub async fn calc_swap_commission(
+const PROCESS_NAME: &str = "calc_exchange_commission";
+
+pub async fn calc_exchange_commission(
     dicts_resolver: &impl ExchangeValidatorAndCommissionDictsResolver,
     client_id: &str,
     sell_asset: &str,
     buy_asset: &str,
     sell_amount: f64,
 ) -> Result<ValidationOkResult, ExchangeValidationError> {
-    const PROCESS_NAME: &str = "calc_swap_commission";
     let asset_pair = dicts_resolver
         .get_asset_pairs_dict()
         .iter_and_find_entity_inside_partition(AssetPairMyNoSqlEntity::PARTITION_KEY, |itm| {
