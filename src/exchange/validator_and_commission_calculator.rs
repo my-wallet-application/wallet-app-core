@@ -5,7 +5,7 @@ use service_sdk::{
     async_trait::async_trait, my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp,
 };
 
-use super::BidAsk;
+use crate::bid_ask::*;
 
 #[derive(Debug, Clone)]
 pub enum ExchangeValidationError {
@@ -39,7 +39,7 @@ pub trait ExchangeValidatorAndCommissionDictsResolver<TBidAsk: BidAsk + Send + S
 
 const PROCESS_NAME: &str = "calc_exchange_commission";
 
-pub async fn calc_exchange_commission<TBidAsk: BidAsk + Send + Sync + 'static>(
+pub async fn calc_exchange_commission<TBidAsk: BidAsk + BidAskSearch + Send + Sync + 'static>(
     dicts_resolver: &impl ExchangeValidatorAndCommissionDictsResolver<TBidAsk>,
     client_id: &str,
     sell_asset: &str,

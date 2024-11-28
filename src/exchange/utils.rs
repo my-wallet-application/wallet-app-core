@@ -1,55 +1,55 @@
-use super::BidAsk;
+use crate::bid_ask::*;
 
-pub fn calc_buy_amount(
+pub fn calc_buy_amount<TBidAsk: BidAsk + BidAskSearch>(
     sell_asset: &str,
     buy_asset: &str,
     sell_amount: f64,
-    rate: &impl BidAsk,
+    bid_ask: &TBidAsk,
 ) -> f64 {
-    if rate.sell_asset() == sell_asset && rate.buy_asset() == buy_asset {
-        return sell_amount * rate.get_bid();
+    if bid_ask.get_sell_asset() == sell_asset && bid_ask.get_buy_asset() == buy_asset {
+        return sell_amount * bid_ask.get_bid();
     }
 
-    return sell_amount / rate.get_ask();
+    return sell_amount / bid_ask.get_ask();
 }
 
-pub fn calc_width_commission(
+pub fn calc_width_commission<TBidAsk: BidAsk + BidAskSearch>(
     sell_asset: &str,
     buy_asset: &str,
     sell_amount: f64,
     commission_amount: f64,
-    rate: &impl BidAsk,
+    rate: &TBidAsk,
 ) -> f64 {
     let sell_amount = sell_amount - commission_amount;
 
-    if rate.sell_asset() == sell_asset && rate.buy_asset() == buy_asset {
+    if rate.get_sell_asset() == sell_asset && rate.get_buy_asset() == buy_asset {
         return sell_amount * rate.get_bid();
     }
 
     return sell_amount / rate.get_ask();
 }
 
-pub fn calc_sell_amount(
+pub fn calc_sell_amount<TBidAsk: BidAsk + BidAskSearch>(
     sell_asset: &str,
     buy_asset: &str,
     buy_amount: f64,
-    rate: &impl BidAsk,
+    bid_ask: &TBidAsk,
 ) -> f64 {
-    if rate.sell_asset() == sell_asset && rate.buy_asset() == buy_asset {
-        return buy_amount / rate.get_bid();
+    if bid_ask.get_sell_asset() == sell_asset && bid_ask.get_buy_asset() == buy_asset {
+        return buy_amount / bid_ask.get_bid();
     }
 
-    return buy_amount * rate.get_ask();
+    return buy_amount * bid_ask.get_ask();
 }
 
-pub fn calc_sell_amount_with_commission(
+pub fn calc_sell_amount_with_commission<TBidAsk: BidAsk + BidAskSearch>(
     sell_asset: &str,
     buy_asset: &str,
     buy_amount: f64,
     commission_amount: f64,
-    rate: &impl BidAsk,
+    rate: &TBidAsk,
 ) -> f64 {
-    if rate.sell_asset() == sell_asset && rate.buy_asset() == buy_asset {
+    if rate.get_sell_asset() == sell_asset && rate.get_buy_asset() == buy_asset {
         return buy_amount / rate.get_bid() + commission_amount;
     }
 
@@ -58,7 +58,7 @@ pub fn calc_sell_amount_with_commission(
 
 #[cfg(test)]
 mod tests {
-    use crate::exchange::BidAsk;
+    use super::{BidAsk, BidAskSearch};
 
     pub struct BidAskMockModel {
         pub bid: f64,
@@ -75,12 +75,14 @@ mod tests {
         fn get_ask(&self) -> f64 {
             self.ask
         }
+    }
 
-        fn sell_asset(&self) -> &str {
+    impl BidAskSearch for BidAskMockModel {
+        fn get_sell_asset(&self) -> &str {
             self.sell_asset
         }
 
-        fn buy_asset(&self) -> &str {
+        fn get_buy_asset(&self) -> &str {
             self.buy_asset
         }
     }

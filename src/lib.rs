@@ -6,3 +6,4 @@ lazy_static::lazy_static! {
     pub static ref ASSET_DEPOSIT_OPTIONS: AssetDepositOptions  = AssetDepositOptions::new();
 
 }
+pub mod bid_ask;
