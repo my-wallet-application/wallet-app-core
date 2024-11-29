@@ -3,8 +3,6 @@ use std::sync::Arc;
 use my_nosql_contracts::{trading_groups::*, *};
 use service_sdk::{my_logger::LogEventCtx, my_no_sql_sdk::reader::MyNoSqlDataReaderTcp};
 
-use crate::bid_ask::*;
-
 #[derive(Debug, Clone)]
 pub enum ExchangeValidationError {
     AssetPairNotFound,
@@ -20,7 +18,7 @@ pub struct ExchangeQuoteValidationResult {
     pub asset_pair: Arc<AssetPairMyNoSqlEntity>,
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
     pub trading_conditions_profile: Arc<TradingConditionsProfile>,
-    pub commission_wallet_id: String,
+    pub commission_client_id: String,
     commission: f64,
 }
 
@@ -174,7 +172,7 @@ pub async fn validate_before_exchange(
     };
 
     return Ok(ExchangeQuoteValidationResult {
-        commission_wallet_id: global_settings.corporate_account_id.to_string(),
+        commission_client_id: global_settings.corporate_account_id.to_string(),
         asset_pair,
         trading_conditions_profile,
         trading_group,
