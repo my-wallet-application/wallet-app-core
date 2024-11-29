@@ -19,13 +19,7 @@ pub struct ExchangeQuoteValidationResult {
     pub trading_group: Arc<TradingGroupMyNoSqlEntity>,
     pub trading_conditions_profile: Arc<TradingConditionsProfile>,
     pub commission_client_id: String,
-    commission: f64,
-}
-
-impl ExchangeQuoteValidationResult {
-    pub fn calc_commission(&self, sell_amount: f64) -> f64 {
-        sell_amount * self.commission * 0.01
-    }
+    pub commission_percent: f64,
 }
 
 pub trait ExchangeValidationDependenciesResolver {
@@ -139,7 +133,7 @@ pub async fn validate_before_exchange(
 
     let direct = asset_pair.from_asset == sell_asset;
 
-    let commission = if direct {
+    let commission_percent = if direct {
         if !trading_conditions_profile.direct_exchange {
             service_sdk::my_logger::LOGGER.write_error(
                 PROCESS_NAME,
@@ -176,7 +170,7 @@ pub async fn validate_before_exchange(
         asset_pair,
         trading_conditions_profile,
         trading_group,
-        commission,
+        commission_percent,
     });
 }
 

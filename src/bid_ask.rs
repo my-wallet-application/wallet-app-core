@@ -7,7 +7,7 @@ pub trait BidAsk {
     }
 }
 
-pub trait BidAskSearch {
+pub trait BidAskAdditionalInfo {
     fn get_sell_asset(&self) -> &str;
     fn get_buy_asset(&self) -> &str;
 }
