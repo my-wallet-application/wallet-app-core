@@ -35,12 +35,13 @@ impl CryptoMethod {
 }
 
 #[derive(Debug, Clone)]
-pub struct AssetCryptoMethod {
+pub struct AssetCryptoDepositWithdrawMethod {
     pub asset_id: &'static str,
     pub deposit_methods: Vec<CryptoMethod>,
+    pub withdraw_methods: Vec<CryptoMethod>,
 }
 
-impl EntityWithStrKey for AssetCryptoMethod {
+impl EntityWithStrKey for AssetCryptoDepositWithdrawMethod {
     fn get_key(&self) -> &str {
         self.asset_id
     }

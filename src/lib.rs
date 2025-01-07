@@ -6,10 +6,7 @@ pub mod exchange;
 pub mod test_mocks;
 
 lazy_static::lazy_static! {
-    pub static ref ASSET_DEPOSIT_OPTIONS: AssetCryptoDepositOptions  = AssetCryptoDepositOptions::new();
+    pub static ref ASSET_DEPOSIT_OPTIONS: AssetCryptoDepositWithdrawOptions  = AssetCryptoDepositWithdrawOptions::new();
 }
 
-lazy_static::lazy_static! {
-    pub static ref ASSET_WITHDRAW_OPTIONS: AssetCryptoWithdrawOptions  = AssetCryptoWithdrawOptions::new();
-}
 pub mod bid_ask;
