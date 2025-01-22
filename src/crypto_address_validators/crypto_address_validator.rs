@@ -5,6 +5,9 @@ pub fn crypto_address_validator(
     asset_id: &str,
     crypto_method: CryptoMethod,
 ) -> bool {
+    if address.len() == 0 {
+        return false;
+    }
     match asset_id {
         ADA_ID => {
             return super::ada_address_validator(address);
