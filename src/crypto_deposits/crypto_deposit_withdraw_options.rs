@@ -1,6 +1,6 @@
 use rust_extensions::sorted_vec::SortedVecWithStrKey;
 
-use super::*;
+use crate::*;
 
 pub struct AssetCryptoDepositWithdrawOptions {
     items: SortedVecWithStrKey<AssetCryptoDepositWithdrawMethod>,
