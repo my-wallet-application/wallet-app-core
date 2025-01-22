@@ -1,23 +1,30 @@
-use regex::Regex;
-
 pub fn ada_address_validator(address: &str) -> bool {
-    is_valid_address_shelley(address) || is_valid_address_byron(address)
+    if address.starts_with("addr1") {
+        for c in address.chars().skip(5) {
+            if !c.is_ascii_alphanumeric() {
+                return false;
+            }
+        }
+    }
+
+    if address.starts_with("stake1") {
+        for c in address.chars().skip(6) {
+            if !c.is_ascii_alphanumeric() {
+                return false;
+            }
+        }
+    }
+
+    true
 }
 
-fn is_valid_address_shelley(address: &str) -> bool {
-    todo!("Implement")
-}
-
-fn is_valid_address_byron(address: &str) -> bool {
-    todo!("Implement")
-}
 #[cfg(test)]
 mod tests {
 
     #[test]
     fn test() {
         let result = super::ada_address_validator(
-            "addr1v9vsw9jysw9w5e8snl5jpxtt63eml60csmmr6xvj6xl7kccg33l7m",
+            "addr1qx2fxv2e0vtpuzjhkt3j22k9m90gy3pkjd5lg4cqpf5g2rg69gf4grm8t3w5r0jh2wt3kc4e9vg06ue2gxv0j7nx4l2snzvkg8",
         );
 
         assert!(result)
