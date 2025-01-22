@@ -1,11 +1,25 @@
 use regex::Regex;
 
 pub fn ada_address_validator(address: &str) -> bool {
-    let shelley_regex = Regex::new(r"^addr[a-z0-9]{58,}$").unwrap();
+    is_valid_address_shelley(address) || is_valid_address_byron(address)
+}
 
-    // Cardano Byron address regex (base58 format)
-    let byron_regex = Regex::new(r"^[A-HJ-NP-Za-km-z1-9]{98,}$").unwrap();
+fn is_valid_address_shelley(address: &str) -> bool {
+    todo!("Implement")
+}
 
-    // Validate against Shelley or Byron regex
-    shelley_regex.is_match(address) || byron_regex.is_match(address)
+fn is_valid_address_byron(address: &str) -> bool {
+    todo!("Implement")
+}
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test() {
+        let result = super::ada_address_validator(
+            "addr1v9vsw9jysw9w5e8snl5jpxtt63eml60csmmr6xvj6xl7kccg33l7m",
+        );
+
+        assert!(result)
+    }
 }
