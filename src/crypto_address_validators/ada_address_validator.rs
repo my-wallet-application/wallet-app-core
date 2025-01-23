@@ -5,6 +5,8 @@ pub fn ada_address_validator(address: &str) -> bool {
                 return false;
             }
         }
+
+        return true;
     }
 
     if address.starts_with("stake1") {
@@ -13,9 +15,10 @@ pub fn ada_address_validator(address: &str) -> bool {
                 return false;
             }
         }
+        return true;
     }
 
-    true
+    false
 }
 
 #[cfg(test)]
